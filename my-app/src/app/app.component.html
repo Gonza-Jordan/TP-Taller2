@@ -1,0 +1,45 @@
+<main class="main">
+
+  <div [formGroup]="formNewTask" class="formNewTask">
+    <h3>{{ editingTaskIndex !== null ? 'Editar tarea' : 'Agregar nueva tarea' }}</h3>
+
+    <label for="title">Título</label>
+    <input type="text" id="title" formControlName="title">
+
+    <label for="description">Descripción</label>
+    <input type="text" id="description" formControlName="description">
+
+    <div class="formButtons">
+      <button (click)="onSubmit()">{{ editingTaskIndex !== null ? 'Guardar cambios' : 'Agregar' }}</button>
+      <button *ngIf="editingTaskIndex !== null" (click)="cancelEdit()" class="cancelButton">Cancelar</button>
+    </div>
+  </div>
+
+  <div *ngIf="tasksList.length > 0" class="tasksListContainer">
+    <h2>Tareas</h2>
+    <ul>
+      <li *ngFor="let task of tasksList; let i = index" 
+          class="taskCard" 
+          [ngClass]="{'completed': task.isCompleted, 'editing': editingTaskIndex === i}">
+        <div class="taskCheckbox">
+          <input type="checkbox" [checked]="task.isCompleted" (change)="toggleCompletion(i)" />
+        </div>
+        <div class="taskContent">
+          <span class="taskTitle">{{ task.title }}</span>
+          <span class="taskDescription">{{ task.description }}</span>
+        </div>
+        <div class="taskButtons">
+          <button class="editButton" (click)="editTask(i)">Editar</button>
+          <button class="deleteButton" (click)="deleteTask(i)">Eliminar</button>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+</main>
+
+<footer class="footer">
+  Taller Web II - Correa, Joaquin / Jordan, Gonzalo / Marendazzo, Camila
+</footer>
+
+<router-outlet></router-outlet>
