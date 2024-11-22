@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 export interface Task {
   id: string;
@@ -19,9 +20,17 @@ export class TaskService {
 
   // Obtener todas las tareas
   getTasks(): Observable<Task[]> {
-    return this.http.get<Task[]>(this.apiUrl);
+    return this.http.get<Task[]>(this.apiUrl).pipe(
+      map((tasks: any[]) =>
+        tasks.map((task) => ({
+          id: task._id, // Mapea _id a id
+          title: task.title,
+          description: task.description,
+          completed: task.completed,
+        }))
+      )
+    );
   }
-
   // Crear una nueva tarea
   createTask(task: Partial<Task>): Observable<Task> {
     console.log('createTask');
