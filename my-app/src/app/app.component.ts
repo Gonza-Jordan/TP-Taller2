@@ -1,96 +1,114 @@
-import { HttpClient } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormControl, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { Router, RouterOutlet } from '@angular/router';
+import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
+import { ReactiveFormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
+import { TaskService, Task } from './task.service';
 import { CommonModule } from '@angular/common';
-import { TaskService } from './task.service';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, ReactiveFormsModule, CommonModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterModule], // Módulos necesarios
   templateUrl: './app.component.html',
-  styleUrls: ['./app.component.css']
+  styleUrls: ['./app.component.css'],
 })
 export class AppComponent implements OnInit {
-  
   title = 'Lista de tareas';
-  formNewTask: FormGroup;
-  tasksList: any[] = [];
-  editingTaskIndex: number | null = null;
+  formNewTask: FormGroup; // Formulario para crear/editar tareas
+  tasksList: Task[] = []; // Lista de tareas cargadas desde el backend
+  editingTaskIndex: number | null = null; // Índice de la tarea que está siendo editada
 
   constructor(
-              protected router: Router, 
-              private formBuilder: FormBuilder, 
-              private taskService: TaskService
-              ) {
+    private formBuilder: FormBuilder,
+    private taskService: TaskService // Servicio para interactuar con el backend
+  ) {
+    // Inicialización del formulario con validaciones
     this.formNewTask = this.formBuilder.group({
-      title: new FormControl('', Validators.required),
-      description: new FormControl('', Validators.required),
+      title: new FormControl('', Validators.required), // Campo obligatorio
+      description: new FormControl('', Validators.required), // Campo obligatorio
     });
   }
 
-  ngOnInit(): void {}
+  // Se ejecuta al inicializar el componente
+  ngOnInit(): void {
+    this.loadTasks(); // Cargar las tareas al iniciar
+  }
 
-  // Método para agregar una nueva tarea o actualizar una existente
-  onSubmit() {
+  // Cargar tareas desde el backend
+  loadTasks(): void {
+    this.taskService.getTasks().subscribe({
+      next: (tasks) => {
+        console.log('Tareas obtenidas del servidor:', tasks); // Depuración
+        this.tasksList = tasks; // Actualizar la lista de tareas
+      },
+      error: (err) => console.error('Error al cargar tareas:', err),
+    });
+  }
+
+  // Método para agregar o actualizar una tarea
+  onSubmit(): void {
     const task = {
       title: this.formNewTask.value.title,
       description: this.formNewTask.value.description,
-      isCompleted: false
+      completed: false,
     };
-    
-    console.log('onsubmit');
-    
+  
     if (this.editingTaskIndex !== null) {
-      this.tasksList[this.editingTaskIndex] = task;
-      this.editingTaskIndex = null;
-    } else {
-      this.taskService.createTask(task).subscribe({
-        next: (newTask) => {
-          console.log('Tarea creada con éxito:', newTask);
-          this.tasksList.push(task);
+      // Actualizar tarea existente
+      const existingTask = this.tasksList[this.editingTaskIndex];
+      this.taskService.updateTask(existingTask.id, task).subscribe({
+        next: (updatedTask) => {
+          this.tasksList[this.editingTaskIndex!] = updatedTask;
+          this.editingTaskIndex = null;
         },
-        error: (err) => {
-          console.error('Error al crear la tarea:', err);
-        },
-        complete: () => {
-          console.log('Creación de tarea completada.');
-        }
+        error: (err) => console.error('Error al actualizar la tarea:', err),
       });
-
-          // this.tasksList.push(task);
+    } else {
+      // Crear nueva tarea
+      this.taskService.createTask(task).subscribe({
+        next: () => {
+          this.loadTasks(); // Recargar la lista de tareas desde el backend
+        },
+        error: (err) => console.error('Error al crear la tarea:', err),
+      });
     }
+  
+    this.formNewTask.reset(); // Limpiar el formulario después de enviar
+  } 
 
-    this.formNewTask.reset();
-  }
-
-  // Método para iniciar la edición de una tarea
-  editTask(index: number) {
-    this.editingTaskIndex = index;
+  // Iniciar la edición de una tarea
+  editTask(index: number): void {
+    this.editingTaskIndex = index; // Establecer el índice de la tarea en edición
     const task = this.tasksList[index];
     this.formNewTask.setValue({
-      title: task.title,
-      description: task.description
+      title: task.title, // Llenar el formulario con los datos de la tarea
+      description: task.description,
     });
   }
 
-  // Método para cancelar la edición de una tarea
-  cancelEdit() {
-    this.editingTaskIndex = null;
-    this.formNewTask.reset();
+  // Cancelar la edición de una tarea
+  cancelEdit(): void {
+    this.editingTaskIndex = null; // Salir del modo edición
+    this.formNewTask.reset(); // Limpiar el formulario
   }
 
-  // Método para eliminar una tarea
-  deleteTask(index: number) {
-    this.tasksList.splice(index, 1);
-    if (this.editingTaskIndex === index) {
-      this.editingTaskIndex = null;
-    }
+  // Eliminar una tarea
+  deleteTask(index: number): void {
+    const taskId = this.tasksList[index].id; // Obtener el ID de la tarea
+    this.taskService.deleteTask(taskId).subscribe({
+      next: () => {
+        this.tasksList.splice(index, 1); // Eliminar la tarea de la lista local
+      },
+      error: (err) => console.error('Error al eliminar la tarea:', err),
+    });
   }
 
-  // Método para marcar una tarea como completada o no completada
-  toggleCompletion(index: number) {
-    this.tasksList[index].isCompleted = !this.tasksList[index].isCompleted;
+  // Marcar una tarea como completada o no completada
+  toggleCompletion(index: number): void {
+    const task = this.tasksList[index];
+    task.completed = !task.completed; // Cambiar el estado de completado
+    this.taskService.updateTask(task.id, task).subscribe({
+      error: (err) => console.error('Error al actualizar el estado de la tarea:', err),
+    });
   }
 }
