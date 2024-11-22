@@ -1,14 +1,14 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
 import { ReactiveFormsModule } from '@angular/forms';
-import { RouterModule  } from '@angular/router';
+import { RouterModule } from '@angular/router';
 import { TaskService, Task } from './task.service';
 import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule ], // Agrega los módulos aquí
+  imports: [CommonModule, ReactiveFormsModule, RouterModule], // Agrega los módulos aquí
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css'],
 })
@@ -19,7 +19,7 @@ export class AppComponent implements OnInit {
   editingTaskIndex: number | null = null;
 
   constructor(
-    private router: RouterModule ,
+    private router: RouterModule,
     private formBuilder: FormBuilder,
     private taskService: TaskService
   ) {
@@ -36,7 +36,10 @@ export class AppComponent implements OnInit {
   // Cargar tareas desde el backend
   loadTasks(): void {
     this.taskService.getTasks().subscribe({
-      next: (tasks) => (this.tasksList = tasks),
+      next: (tasks) => {
+        console.log('Tareas obtenidas del servidor:', tasks);
+        this.tasksList = tasks;
+      },
       error: (err) => console.error('Error al cargar tareas:', err),
     });
   }
@@ -48,28 +51,30 @@ export class AppComponent implements OnInit {
       description: this.formNewTask.value.description,
       completed: false,
     };
-
+  
     if (this.editingTaskIndex !== null) {
       // Actualizar tarea existente
       const existingTask = this.tasksList[this.editingTaskIndex];
       this.taskService.updateTask(existingTask.id, task).subscribe({
-        next: (updatedTask) => {
-          this.tasksList[this.editingTaskIndex!] = updatedTask;
-          this.editingTaskIndex = null;
+        next: () => {
+          this.loadTasks(); // Recargar la lista completa para sincronizar
+          this.editingTaskIndex = null; // Salir del modo edición
         },
         error: (err) => console.error('Error al actualizar la tarea:', err),
       });
     } else {
       // Crear nueva tarea
       this.taskService.createTask(task).subscribe({
-        next: (newTask) => this.tasksList.push(newTask),
+        next: () => {
+          this.loadTasks(); // Recargar la lista completa para sincronizar
+        },
         error: (err) => console.error('Error al crear la tarea:', err),
       });
     }
-
-    this.formNewTask.reset();
-  }
-
+  
+    this.formNewTask.reset(); // Resetear el formulario
+  } 
+  
   // Iniciar la edición de una tarea
   editTask(index: number): void {
     this.editingTaskIndex = index;
@@ -99,7 +104,7 @@ export class AppComponent implements OnInit {
   toggleCompletion(index: number): void {
     const task = this.tasksList[index];
     task.completed = !task.completed; // Cambiar el estado de completado
-  
+
     this.taskService.updateTask(task.id, task).subscribe({
       next: (updatedTask) => {
         this.tasksList[index] = updatedTask; // Actualizar la lista local con la respuesta del backend
@@ -107,5 +112,4 @@ export class AppComponent implements OnInit {
       error: (err) => console.error('Error al actualizar el estado de la tarea:', err),
     });
   }
-
 }
